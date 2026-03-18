@@ -7,15 +7,45 @@
 
 import SwiftUI
 
+struct Message {
+    var role: String
+    var content: String
+}
+
 struct ContentView: View {
+    @State private var text: String = ""
+    
     var body: some View {
         VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+            
+            HStack(alignment: .bottom, spacing: 8) {
+                TextField("Input message", text: $text, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(1...4)
+                
+                Button(action: sendMessage) {
+                    Image(systemName: "paperplane.fill")
+                        .foregroundStyle(.white)
+                        .frame(width: 32, height: 32)
+                        .background(
+                            Circle().fill(Color.blue)
+                        )
+                }
+            }
         }
         .padding()
+    }
+    
+    private func sendMessage() {
+        
+    }
+}
+
+struct MessageView: View {
+    let message: Message
+    
+    var body: some View {
+        
     }
 }
 
