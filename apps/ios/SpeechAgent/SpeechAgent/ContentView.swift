@@ -34,7 +34,7 @@ struct ContentView: View {
                         .padding()
                     }
                     .background(Color(.systemGroupedBackground))
-                    .onChange(of: messages.count) { _ in
+                    .onChange(of: messages.count) {
                         if let lastID = messages.last?.id {
                             withAnimation {
                                 proxy.scrollTo(lastID, anchor: .bottom)
