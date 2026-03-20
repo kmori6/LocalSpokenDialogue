@@ -47,15 +47,20 @@ struct ContentView: View {
                     TextField("Input message", text: $asrClient.transcript, axis: .vertical)
                         .lineLimit(1...4)
                     
-                    Button(action: asrClient.startRecognition) {
-                        Image(systemName: "mic.fill")
+                    Button(action: {
+                        if asrClient.isRecording {
+                            asrClient.stopRecognition()
+                        } else {
+                            asrClient.startRecognition()
+                            }
+                    }) {
+                        Image(systemName: asrClient.isRecording ? "stop.fill" : "mic.fill")
                             .foregroundStyle(.white)
                             .frame(width: 32, height: 32)
                             .background(
                                 Circle().fill(Color.blue)
                             )
                     }
-                    .disabled(asrClient.isRecording)
                 }
                 .padding()
                 .background(Color(.systemBackground))
@@ -71,7 +76,7 @@ struct ContentView: View {
             asrClient.clearTranscript()
             
             Task {
-                let output = "dummy results."
+                let output = "こんにちは"
                 let message = Message(role: "assistant", content: output)
                 messages.append(message)
                 
