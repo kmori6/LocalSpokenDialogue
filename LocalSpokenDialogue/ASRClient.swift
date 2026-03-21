@@ -1,6 +1,6 @@
 //
 //  ASRClient.swift
-//  SpeechAgent
+//  LocalSpokenDialogue
 //
 //  Created by Kosuke Mori on 2026/03/20.
 //
