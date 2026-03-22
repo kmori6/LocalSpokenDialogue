@@ -36,7 +36,7 @@ final class LLMClient: ObservableObject {
     private let modelFileName = "Qwen3.5-4B-Q4_K_M"
     private let modelFileExtension = "gguf"
     private var context: LlamaContext?
-    private let instructions = "You are a helpful assistant."
+    private let instructions = "You are a helpful assistant. Chat with user in Japanese."
     
     func load() async {
         if isReady {
@@ -60,26 +60,43 @@ final class LLMClient: ObservableObject {
         }
     }
     
-    func generate(text: String) async -> String {
-        guard let context else {
-            return "model is not loaded."
+    func applyChatTemplate(messages: [Message], addAssistant: Bool = true, enableThinking: Bool = false) -> String {
+        let thinkingTag = enableThinking ? "/think" : "/no_think"
+        var prompt = "<|im_start|>system\n\(instructions) \(thinkingTag)<|im_end|>\n"
+        
+        for message in messages {
+            prompt += "<|im_start|>\(message.role)\n\(message.content)<|im_end|>\n"
         }
         
-        var prompt = "<|im_start|>system\n\(instructions)<|im_end|>\n"
-        prompt += "<|im_start|>user\n\(text)<|im_end|>\n"
-        prompt += "<|im_start|>assistant\n"
+        if addAssistant {
+            prompt += "<|im_start|>assistant\n"
+        }
         
+        return prompt
+    }
+    
+    func generate(messages: [Message]) async -> Message {
+        guard let context else {
+            return Message(role: "assistant", content: "model is not loaded.")
+        }
+        
+        await context.reset()
+            
+        let prompt = applyChatTemplate(messages: messages, addAssistant: true)
         await context.completion_init(text: prompt)
         
         var output = ""
         while await !context.is_done {
-            print(output)
             output += await context.completion_loop()
         }
         
         await context.clear()
         
+        // post process
+        let regex = /<think>[\s\S]*?<\/think>/ //
+        output.replace(regex, with: "")
         let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed
+        let message = Message(role: "assistant", content: trimmed)
+        return message
     }
 }

@@ -123,7 +123,8 @@ actor LlamaContext {
     func completion_init(text: String) {
         print("attempting to complete \"\(text)\"")
 
-        tokens_list = tokenize(text: text, add_bos: true)
+//        tokens_list = tokenize(text: text, add_bos: true)
+        tokens_list = tokenize(text: text, addSpecial: false, parseSpecial: true)
         temporary_invalid_cchars = []
 
         let n_ctx = llama_n_ctx(context)
@@ -301,11 +302,14 @@ actor LlamaContext {
         llama_memory_clear(llama_get_memory(context), true)
     }
 
-    private func tokenize(text: String, add_bos: Bool) -> [llama_token] {
+//    private func tokenize(text: String, add_bos: Bool) -> [llama_token] {
+    private func tokenize(text: String, addSpecial: Bool, parseSpecial: Bool) -> [llama_token] {
         let utf8Count = text.utf8.count
-        let n_tokens = utf8Count + (add_bos ? 1 : 0) + 1
+//        let n_tokens = utf8Count + (add_bos ? 1 : 0) + 1
+        let n_tokens = utf8Count + 1
         let tokens = UnsafeMutablePointer<llama_token>.allocate(capacity: n_tokens)
-        let tokenCount = llama_tokenize(vocab, text, Int32(utf8Count), tokens, Int32(n_tokens), add_bos, false)
+//        let tokenCount = llama_tokenize(vocab, text, Int32(utf8Count), tokens, Int32(n_tokens), add_bos, false)
+        let tokenCount = llama_tokenize(vocab, text, Int32(utf8Count), tokens, Int32(n_tokens), addSpecial, parseSpecial)
 
         var swiftTokens: [llama_token] = []
         for i in 0..<tokenCount {
@@ -342,74 +346,9 @@ actor LlamaContext {
     }
     
     // original
-    func applyChatTemplate(messages: [LlamaChatMessage], addAssistant: Bool = true) throws -> String {
-        guard let tmpl = llama_model_chat_template(model, nil) else {
-            throw LlamaError.couldNotInitializeContext
-        }
-        
-        let rolePointers = try messages.map { message -> UnsafeMutablePointer<CChar> in
-            guard let ptr = strdup(message.role) else {
-                throw LlamaError.couldNotInitializeContext
-            }
-            return ptr
-        }
-        
-        let contentPointers = try messages.map { message -> UnsafeMutablePointer<CChar> in
-            guard let ptr = strdup(message.content) else {
-                throw LlamaError.couldNotInitializeContext
-            }
-            return ptr
-        }
-        
-        defer {
-            rolePointers.forEach { free($0) }
-            contentPointers.forEach { free($0) }
-        }
-        
-        var chatMessages = zip(rolePointers, contentPointers).map { role, content in
-            llama_chat_message(
-                role: UnsafePointer(role),
-                content: UnsafePointer(content)
-            )
-        }
-        
-        let required = chatMessages.withUnsafeBufferPointer { buffer in
-            llama_chat_apply_template(
-                tmpl,
-                buffer.baseAddress,
-                buffer.count,
-                addAssistant,
-                nil,
-                0
-            )
-        }
-        
-        guard required >= 0 else {
-            throw LlamaError.couldNotInitializeContext
-        }
-        
-        let bufferSize = Int(required) + 1
-        let output = UnsafeMutablePointer<CChar>.allocate(capacity: bufferSize)
-        output.initialize(repeating: 0, count: bufferSize)
-        defer {
-            output.deallocate()
-        }
-        
-        let written = chatMessages.withUnsafeBufferPointer { buffer in
-            llama_chat_apply_template(
-                tmpl,
-                buffer.baseAddress,
-                buffer.count,
-                addAssistant,
-                output,
-                Int32(bufferSize)
-            )
-        }
-        
-        guard written >= 0 else {
-            throw LlamaError.couldNotInitializeContext
-        }
-        
-        return String(cString: output)
+    func reset() {
+        is_done = false
+        n_decode = 0
+        temporary_invalid_cchars.removeAll()
     }
 }

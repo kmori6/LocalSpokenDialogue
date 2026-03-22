@@ -79,11 +79,9 @@ struct ContentView: View {
             asrClient.clearTranscript()
             
             Task {
-                let output = await llmClient.generate(text: text)
-                let message = Message(role: "assistant", content: output)
+                let message = await llmClient.generate(messages: messages)
                 messages.append(message)
-                
-                ttsClient.synthesize(text: output, rate: 0.5)
+                ttsClient.synthesize(text: message.content, rate: 0.5)
             }
         }
     }
