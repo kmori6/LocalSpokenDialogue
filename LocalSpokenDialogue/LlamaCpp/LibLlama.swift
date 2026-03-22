@@ -1,6 +1,12 @@
 import Foundation
 import llama
 
+// original
+struct LlamaChatMessage {
+    let role: String
+    let content: String
+}
+
 enum LlamaError: Error {
     case couldNotInitializeContext
 }
@@ -333,5 +339,77 @@ actor LlamaContext {
             let bufferPointer = UnsafeBufferPointer(start: result, count: Int(nTokens))
             return Array(bufferPointer)
         }
+    }
+    
+    // original
+    func applyChatTemplate(messages: [LlamaChatMessage], addAssistant: Bool = true) throws -> String {
+        guard let tmpl = llama_model_chat_template(model, nil) else {
+            throw LlamaError.couldNotInitializeContext
+        }
+        
+        let rolePointers = try messages.map { message -> UnsafeMutablePointer<CChar> in
+            guard let ptr = strdup(message.role) else {
+                throw LlamaError.couldNotInitializeContext
+            }
+            return ptr
+        }
+        
+        let contentPointers = try messages.map { message -> UnsafeMutablePointer<CChar> in
+            guard let ptr = strdup(message.content) else {
+                throw LlamaError.couldNotInitializeContext
+            }
+            return ptr
+        }
+        
+        defer {
+            rolePointers.forEach { free($0) }
+            contentPointers.forEach { free($0) }
+        }
+        
+        var chatMessages = zip(rolePointers, contentPointers).map { role, content in
+            llama_chat_message(
+                role: UnsafePointer(role),
+                content: UnsafePointer(content)
+            )
+        }
+        
+        let required = chatMessages.withUnsafeBufferPointer { buffer in
+            llama_chat_apply_template(
+                tmpl,
+                buffer.baseAddress,
+                buffer.count,
+                addAssistant,
+                nil,
+                0
+            )
+        }
+        
+        guard required >= 0 else {
+            throw LlamaError.couldNotInitializeContext
+        }
+        
+        let bufferSize = Int(required) + 1
+        let output = UnsafeMutablePointer<CChar>.allocate(capacity: bufferSize)
+        output.initialize(repeating: 0, count: bufferSize)
+        defer {
+            output.deallocate()
+        }
+        
+        let written = chatMessages.withUnsafeBufferPointer { buffer in
+            llama_chat_apply_template(
+                tmpl,
+                buffer.baseAddress,
+                buffer.count,
+                addAssistant,
+                output,
+                Int32(bufferSize)
+            )
+        }
+        
+        guard written >= 0 else {
+            throw LlamaError.couldNotInitializeContext
+        }
+        
+        return String(cString: output)
     }
 }
