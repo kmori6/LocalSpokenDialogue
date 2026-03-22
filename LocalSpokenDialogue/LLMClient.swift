@@ -60,16 +60,16 @@ final class LLMClient: ObservableObject {
         }
     }
     
-    func applyChatTemplate(messages: [Message], addAssistant: Bool = true, enableThinking: Bool = false) -> String {
-        let thinkingTag = enableThinking ? "/think" : "/no_think"
-        var prompt = "<|im_start|>system\n\(instructions) \(thinkingTag)<|im_end|>\n"
+    func applyChatTemplate(messages: [Message], enableThinking: Bool = false) -> String {
+        var prompt = "<|im_start|>system\n\(instructions)<|im_end|>\n"
         
         for message in messages {
             prompt += "<|im_start|>\(message.role)\n\(message.content)<|im_end|>\n"
         }
         
-        if addAssistant {
-            prompt += "<|im_start|>assistant\n"
+        prompt += "<|im_start|>assistant\n<think>\n"
+        if !enableThinking {
+            prompt += "\n</think>\n\n"
         }
         
         return prompt
@@ -82,7 +82,7 @@ final class LLMClient: ObservableObject {
         
         await context.reset()
             
-        let prompt = applyChatTemplate(messages: messages, addAssistant: true)
+        let prompt = applyChatTemplate(messages: messages, enableThinking: false)
         await context.completion_init(text: prompt)
         
         var output = ""
