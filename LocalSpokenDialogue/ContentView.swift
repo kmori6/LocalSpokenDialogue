@@ -79,7 +79,7 @@ struct ContentView: View {
             asrClient.clearTranscript()
             
             Task {
-                let output = "こんにちは"
+                let output = await llmClient.generate(text: text)
                 let message = Message(role: "assistant", content: output)
                 messages.append(message)
                 
