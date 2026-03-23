@@ -5,37 +5,17 @@
 //  Created by Kosuke Mori on 2026/03/19.
 //
 
-import Foundation
 import Combine
-import llama
+import Foundation
+import MLXLMCommon
+import MLXVLM
 
-struct Request: Encodable {
-    let model: String
-    let instructions: String
-    let input: [Content]
-}
-
-struct Responses: Decodable {
-    let id: String
-    let output: [Content]
-}
-
-struct Content: Codable {
-    let role: String
-    let content: [ContentItem]
-}
-
-struct ContentItem: Codable {
-    let type: String
-    let text: String
-}
 
 final class LLMClient: ObservableObject {
     
     @Published var isReady = false
-    private let modelFileName = "Qwen3.5-4B-Q4_K_M"
-    private let modelFileExtension = "gguf"
-    private var context: LlamaContext?
+    private var session: ChatSession?
+    private var reasoningEnabled = false
     private let instructions = "You are a helpful assistant. Chat with user in Japanese."
     
     func load() async {
@@ -43,16 +23,28 @@ final class LLMClient: ObservableObject {
             return
         }
         
+        guard let modelDirectory = Bundle.main.resourceURL?
+            .appendingPathComponent("models")
+            .appendingPathComponent("Qwen3.5-4B-MLX-4bit") else {
+            fatalError("model folder not found")
+        }
+        
         do {
-            guard let modelURL = Bundle.main.url(
-                forResource: modelFileName,
-                withExtension: modelFileExtension,
-            ) else {
-                print("model url error.")
-                return
-            }
-
-            context = try LlamaContext.create_context(path: modelURL.path)
+            let container = try await loadModelContainer(directory:
+              modelDirectory)
+            session = ChatSession(
+              container,
+              instructions: instructions,
+              generateParameters: .init(
+                  maxTokens: 256,
+                  temperature: 1.0,
+                  topP: 0.95,
+                  presencePenalty: 1.5,
+              ),
+              additionalContext: ["enable_thinking":
+              reasoningEnabled]
+            )
+            
             isReady = true
             print("loaded model.")
         } catch {
@@ -75,28 +67,19 @@ final class LLMClient: ObservableObject {
         return prompt
     }
     
-    func generate(messages: [Message]) async -> Message {
-        guard let context else {
+    func generate(text: String) async -> Message {
+        guard let session else {
             return Message(role: "assistant", content: "model is not loaded.")
         }
         
-        await context.reset()
+        do {
+            let output = try await session.respond(to: text)
+            let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+            let message = Message(role: "assistant", content: trimmed)
+            return message
             
-        let prompt = applyChatTemplate(messages: messages, enableThinking: false)
-        await context.completion_init(text: prompt)
-        
-        var output = ""
-        while await !context.is_done {
-            output += await context.completion_loop()
+        } catch {
+            return Message(role: "assistant", content: "generation failed.")
         }
-        
-        await context.clear()
-        
-        // post process
-        let regex = /<think>[\s\S]*?<\/think>/ //
-        output.replace(regex, with: "")
-        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
-        let message = Message(role: "assistant", content: trimmed)
-        return message
     }
 }

@@ -79,7 +79,7 @@ struct ContentView: View {
             asrClient.clearTranscript()
             
             Task {
-                let message = await llmClient.generate(messages: messages)
+                let message = await llmClient.generate(text: text)
                 messages.append(message)
                 ttsClient.synthesize(text: message.content, rate: 0.5)
             }
