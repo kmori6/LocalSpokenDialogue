@@ -24,7 +24,6 @@ final class LLMClient: ObservableObject {
         }
         
         guard let modelDirectory = Bundle.main.resourceURL?
-            .appendingPathComponent("models")
             .appendingPathComponent("Qwen3.5-4B-MLX-4bit") else {
             fatalError("model folder not found")
         }
