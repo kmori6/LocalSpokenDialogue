@@ -15,7 +15,6 @@ final class ASRClient: ObservableObject {
     @Published var transcript: String = ""
     @Published var finalTranscript: String = ""
     @Published var isRecording: Bool = false
-    
     @Published var useOnDeviceRecognition: Bool = false
     
     private let audioEngine = AVAudioEngine()
@@ -140,5 +139,9 @@ final class ASRClient: ObservableObject {
     func clearTranscript() {
         transcript = ""
         finalTranscript = ""
+    }
+    
+    func append(_ buffer: AVAudioPCMBuffer) {
+        recognitionRequest?.append(buffer)
     }
 }

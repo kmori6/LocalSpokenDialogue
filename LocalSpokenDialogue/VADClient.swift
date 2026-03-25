@@ -9,6 +9,7 @@ import Foundation
 import OnnxRuntimeBindings
 
 final class VADClient {
+    private var env: ORTEnv?
     private var session: ORTSession?
     private var state: [Float] = Array(repeating: 0, count: 2 * 1 * 128)
     private var context: [Float] = Array(repeating: 0, count: 64)
@@ -21,11 +22,11 @@ final class VADClient {
             withExtension: "onnx"
         )!
         
-        let env = try ORTEnv(loggingLevel: .warning)
+        env = try ORTEnv(loggingLevel: .warning)
         let options = try ORTSessionOptions()
         try options.setIntraOpNumThreads(1)
         session = try ORTSession(
-            env: env,
+            env: env!,
             modelPath: modelURL.path,
             sessionOptions: options
         )
@@ -98,7 +99,7 @@ final class VADClient {
             return 0.0
         }
         let nextStateData = try nextStateTensor.tensorData() as Data
-        let nextState = probData.withUnsafeBytes { buffer in
+        let nextState = nextStateData.withUnsafeBytes { buffer in
             Array(buffer.bindMemory(to: Float.self))
         }
         
